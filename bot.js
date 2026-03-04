@@ -1,21 +1,36 @@
 const puppeteer = require("puppeteer");
 const TelegramBot = require("node-telegram-bot-api");
 
+// Environment variables
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
-const URL = process.env.TICKET_URL;
+const URL = process.env.TICKET_URL?.trim();
+
+// Validate URL
+if (!URL || !URL.startsWith("http")) {
+  console.error("Error: TICKET_URL is missing or invalid:", URL);
+  process.exit(1);
+}
 
 const bot = new TelegramBot(TOKEN, { polling: false });
 
 let notified = false;
-const WORKERS = 1; // Number of parallel watchers
+const WORKERS = 1;           // 1 worker for free-tier stability
+const CHECK_INTERVAL = 2500; // 2.5-second fast checks
 
 async function checkTickets(workerId) {
   let browser;
   try {
     browser = await puppeteer.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--single-process",
+        "--no-zygote"
+      ]
     });
 
     const page = await browser.newPage();
@@ -48,17 +63,12 @@ async function checkTickets(workerId) {
 }
 
 async function runWorkers() {
-  console.log(`Starting V2 notifier with ${WORKERS} workers`);
+  console.log(`Starting V2 notifier with ${WORKERS} worker(s)`);
   setInterval(() => {
     for (let i = 1; i <= WORKERS; i++) {
       checkTickets(i);
     }
-  }, 5000); // check every 8 seconds
+  }, CHECK_INTERVAL);
 }
 
 runWorkers();
-if (!URL || !URL.startsWith("http")) {
-  console.error("Error: TICKET_URL is missing or invalid:", URL);
-  process.exit(1);
-}
-const WORKERS = 1; // instead of 3
