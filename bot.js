@@ -8,7 +8,7 @@ const URL = process.env.TICKET_URL;
 const bot = new TelegramBot(TOKEN, { polling: false });
 
 let notified = false;
-const WORKERS = 3; // Number of parallel watchers
+const WORKERS = 1; // Number of parallel watchers
 
 async function checkTickets(workerId) {
   let browser;
