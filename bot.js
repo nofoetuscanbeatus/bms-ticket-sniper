@@ -57,3 +57,7 @@ async function runWorkers() {
 }
 
 runWorkers();
+if (!URL || !URL.startsWith("http")) {
+  console.error("Error: TICKET_URL is missing or invalid:", URL);
+  process.exit(1);
+}
