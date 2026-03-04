@@ -5,18 +5,21 @@ const TelegramBot = require("node-telegram-bot-api");
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const URL = process.env.TICKET_URL?.trim();
-
-// Validate URL
-if (!URL || !URL.startsWith("http")) {
-  console.error("Error: TICKET_URL is missing or invalid:", URL);
-  process.exit(1);
-}
+const TEST_MODE = process.env.TEST_MODE === "true";
 
 const bot = new TelegramBot(TOKEN, { polling: false });
 
 let notified = false;
-const WORKERS = 1;           // 1 worker for free-tier stability
-const CHECK_INTERVAL = 2500; // 2.5-second fast checks
+const WORKERS = 1;
+const CHECK_INTERVAL = 2500;
+
+async function sendTestAlert() {
+  console.log("Running in TEST MODE");
+  await bot.sendMessage(
+    CHAT_ID,
+    "✅ Bot is working! This is a test notification."
+  );
+}
 
 async function checkTickets(workerId) {
   let browser;
@@ -63,7 +66,13 @@ async function checkTickets(workerId) {
 }
 
 async function runWorkers() {
+  if (TEST_MODE) {
+    await sendTestAlert();
+    return;
+  }
+
   console.log(`Starting V2 notifier with ${WORKERS} worker(s)`);
+
   setInterval(() => {
     for (let i = 1; i <= WORKERS; i++) {
       checkTickets(i);
