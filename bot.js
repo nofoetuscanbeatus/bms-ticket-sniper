@@ -53,7 +53,7 @@ async function runWorkers() {
     for (let i = 1; i <= WORKERS; i++) {
       checkTickets(i);
     }
-  }, 8000); // check every 8 seconds
+  }, 5000); // check every 8 seconds
 }
 
 runWorkers();
@@ -61,3 +61,4 @@ if (!URL || !URL.startsWith("http")) {
   console.error("Error: TICKET_URL is missing or invalid:", URL);
   process.exit(1);
 }
+const WORKERS = 1; // instead of 3
