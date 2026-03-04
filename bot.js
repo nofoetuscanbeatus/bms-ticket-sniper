@@ -15,8 +15,8 @@ if (!TOKEN || !CHAT_ID) {
 const bot = new TelegramBot(TOKEN, { polling: false });
 
 let notified = false;
-const WORKERS = 1;           // 1 worker for stability
-const CHECK_INTERVAL = 2500; // 2.5-second fast checks
+const WORKERS = 1;           // 1 worker for free-tier stability
+const CHECK_INTERVAL = 2500; // 2.5-second checks
 
 // TEST_MODE function
 async function sendTestAlert() {
@@ -28,6 +28,7 @@ async function sendTestAlert() {
   }
 }
 
+// Memory-safe Puppeteer check
 async function checkTickets(workerId) {
   let browser;
   try {
@@ -39,8 +40,15 @@ async function checkTickets(workerId) {
         "--disable-dev-shm-usage",
         "--disable-gpu",
         "--single-process",
-        "--no-zygote"
-      ]
+        "--no-zygote",
+        "--no-first-run",
+        "--no-extensions",
+        "--disable-background-networking",
+        "--disable-sync",
+        "--disable-translate",
+        "--mute-audio"
+      ],
+      timeout: 60000
     });
 
     const page = await browser.newPage();
@@ -72,6 +80,7 @@ async function checkTickets(workerId) {
   }
 }
 
+// Worker runner
 async function runWorkers() {
   if (TEST_MODE) {
     await sendTestAlert();
