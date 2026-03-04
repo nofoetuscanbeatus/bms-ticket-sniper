@@ -1,0 +1,12 @@
+{
+  "name": "bms-v2-notifier",
+  "version": "2.0.0",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.3.8",
+    "node-telegram-bot-api": "^0.61.0"
+  }
+}
