@@ -4,9 +4,9 @@ const EVENT_URL =
   process.env.EVENT_URL ||
   "https://in.bookmyshow.com/sports/icc-men-s-t20-world-cup-2026-semi-final-2/ET00474271";
 
-const CHECK_INTERVAL = 2000; // faster
-const PARALLEL = Number(process.env.PARALLEL_SESSIONS || 3);
-const TICKETS = Number(process.env.TICKETS || 2);
+const CHECK_INTERVAL = 2000;
+const PARALLEL_CONTEXTS = 3; // simulate multiple users
+const TICKETS = 2;
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -24,8 +24,8 @@ async function sendTelegram(msg) {
   }).catch(() => {});
 }
 
-// 🔍 Find 2 adjacent seats
-async function findSeats(page) {
+// 🔍 smarter seat detection
+async function findAdjacentSeats(page) {
   const seats = await page.$$("[class*='seat'][class*='available']");
 
   if (seats.length < TICKETS) return null;
@@ -34,9 +34,7 @@ async function findSeats(page) {
 
   for (const seat of seats) {
     const box = await seat.boundingBox();
-    if (box) {
-      positions.push({ seat, x: box.x, y: box.y });
-    }
+    if (box) positions.push({ seat, x: box.x, y: box.y });
   }
 
   positions.sort((a, b) => a.y - b.y || a.x - b.x);
@@ -56,10 +54,11 @@ async function findSeats(page) {
   return null;
 }
 
-async function bookingWorker(id, context) {
+// 🎯 main sniper loop
+async function sniperWorker(id, context) {
   const page = await context.newPage();
 
-  console.log(`🚀 Worker ${id} ready`);
+  console.log(`🚀 Context ${id} ready`);
 
   while (true) {
     try {
@@ -67,11 +66,10 @@ async function bookingWorker(id, context) {
 
       await page.click("text=Book Tickets", { timeout: 3000 }).catch(() => {});
 
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(1200);
 
-      // 🔁 retry seat selection loop
-      for (let attempt = 1; attempt <= 10; attempt++) {
-        const seats = await findSeats(page);
+      for (let attempt = 1; attempt <= 15; attempt++) {
+        const seats = await findAdjacentSeats(page);
 
         if (seats) {
           for (const s of seats) await s.click();
@@ -80,26 +78,26 @@ async function bookingWorker(id, context) {
           await page.click("text=Pay").catch(() => {});
 
           await sendTelegram(
-            `🔥 SUCCESS: Worker ${id} got 2 seats! Complete payment NOW`
+            `🔥 SUCCESS: Context ${id} got seats! Complete payment NOW`
           );
 
           console.log("🎯 Seats locked!");
           process.exit(0);
         }
 
-        // refresh seat map
+        // 🔁 aggressive refresh
         await page.reload({ waitUntil: "domcontentloaded" });
       }
 
-      console.log(`Worker ${id} retrying...`);
     } catch (err) {
-      console.log(`Worker ${id} error`, err.message);
+      console.log(`Context ${id} error`, err.message);
     }
   }
 }
 
-async function monitor(context) {
-  const page = await context.newPage();
+// 👀 monitor sale
+async function monitor(contexts) {
+  const page = await contexts[0].newPage();
 
   console.log("👀 Monitoring started...");
 
@@ -112,11 +110,11 @@ async function monitor(context) {
       if (html.includes("Book Tickets")) {
         console.log("🚨 SALE LIVE");
 
-        await sendTelegram("🚨 Tickets are LIVE. Sniping started!");
+        await sendTelegram("🚨 Tickets are LIVE. ULTRA SNIPER ACTIVE.");
 
-        for (let i = 1; i <= PARALLEL; i++) {
-          bookingWorker(i, context);
-        }
+        contexts.forEach((ctx, i) => {
+          sniperWorker(i + 1, ctx);
+        });
 
         break;
       }
@@ -131,8 +129,13 @@ async function monitor(context) {
 (async () => {
   const browser = await chromium.launch({ headless: true });
 
-  // 🔥 shared context = faster sessions
-  const context = await browser.newContext();
+  const contexts = [];
 
-  await monitor(context);
+  // 🔥 create multiple independent sessions
+  for (let i = 0; i < PARALLEL_CONTEXTS; i++) {
+    const ctx = await browser.newContext();
+    contexts.push(ctx);
+  }
+
+  await monitor(contexts);
 })();
